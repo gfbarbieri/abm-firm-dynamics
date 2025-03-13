@@ -2,22 +2,26 @@
 # IMPORTS
 ###########################################################################
 
-from models.market import Market
-from config import base_params
-# import os
+from .models.market import Market
+from .config import base_params
 
 ###########################################################################
 # EXECUTE MODEL
 ###########################################################################
 
 def main():
+    """
+    Main function to run the model.
+    """
+
     # Initialize model with imported parameters.
     print("Initializing market.")
-    model = Market(base_params)
+    model = Market(**base_params)
 
     # Run the model.
     print("Running model.")
-    results = model.run()
+    results = model.run_model()
+
 
     # Save model results.
     print("Model complete, saving results.")
