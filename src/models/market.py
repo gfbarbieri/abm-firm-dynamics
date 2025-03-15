@@ -31,6 +31,7 @@ class Market(Model):
 
     def __init__(
             self, num_steps: int, num_agents: int, activation: float,
+            mutual_acceptance: bool=True, global_search_rate: float=0.01,
             seed: int=None
         ) -> None:
         """
@@ -45,6 +46,12 @@ class Market(Model):
             The number of agents in the model.
         activation
             The activation rate of the workers.
+        mutual_acceptance
+            Whether firms must accept workers before they can join. If
+            True, firms will only accept workers that increase their
+            growth rate.
+        global_search_rate
+            The global search rate of the workers.
         seed
             The random seed for the model.
         """
@@ -56,6 +63,8 @@ class Market(Model):
         self.num_steps = num_steps
         self.num_agents = num_agents
         self.activation = activation
+        self.mutual_acceptance = mutual_acceptance
+        self.global_search_rate = global_search_rate
 
         # Create worker and firm agents. This adds the agents to the
         # model's agent attribute.
@@ -137,6 +146,11 @@ class Market(Model):
                     "size": "size",
                     "output": "output",
                     "output_per_worker": "output_per_worker"
+                },
+                Worker: {
+                    "mu": "mu",
+                    "sigma": "sigma",
+                    "employer_id": "employer_id"
                 }
             }
         )
@@ -170,8 +184,9 @@ class Market(Model):
         # Set the worker's search attribute to True.
         sel_workers.set(attr_name='search', value=True)
 
-        # Have selected workers search for a new employer.
-        sel_workers.do('select_firm')
+        # Have selected workers search for a new employer. Activate the
+        # workers randomly by shuffling the selected workers.
+        sel_workers.shuffle_do('select_firm')
 
         # After labor market churn is complete: the firms produce,
         # distribute their output to their workers, and update their

@@ -166,17 +166,22 @@ class Worker(Agent):
         # descending order of growth rate, and the growth rates are
         # returned.
         potential_firms = self.rank_firms(firms=potential_firms)
-    
+
         # Ask each firm if the worker can join the firm. If True, then
         # as the worker if they want to join the firm. If so, then
         # switch firms. If the worker switches firms, then there is no
         # need to check the remaining firms, so break out of the loop.
         for firm, new_g in potential_firms:
 
-            # Ask the firm if the worker can join the firm. The firm
+            # If the two-way setting is toggled on, then workers will
+            # ask the firm if the worker can join the firm. The firm
             # will only do is if adding the worker will increase the
-            # firm's growth rate.
-            offer = firm.offer(worker=self)
+            # firm's growth rate. Otherwise, the worker can join the
+            # firm and the offer is always True.
+            if self.model.mutual_acceptance == True:
+                offer = firm.offer(worker=self)
+            else:
+                offer = True
 
             # If True, check if the worker wants to join the firm.
             if offer == True:
@@ -275,7 +280,7 @@ class Worker(Agent):
         # Select firms. 1% of the time select firms from the general
         # worker population. Otherwise, select firms from the worker's
         # network. This returns a list and can return an empty list.
-        if self.random.random() < 0.01:
+        if self.random.random() < self.model.global_search_rate:
             worker_firms = self.select_firms_with_workers(k=self.num_neighbors)
         else:
             worker_firms = self.select_firms_from_network()
