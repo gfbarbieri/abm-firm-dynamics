@@ -71,7 +71,12 @@ class Worker(Agent):
         # Initialize the worker with random investment return and
         # volatility, and calculate the growth rate.
         self.mu = self.random.uniform(0, 0.01)
-        self.sigma = self.random.uniform(0, math.sqrt(2 * self.mu))
+
+        if self.model.constant_sigma:
+            self.sigma = self.model.constant_sigma
+        else:
+            self.sigma = self.random.uniform(0, math.sqrt(2 * self.mu))
+
         self.g = self.mu - (self.sigma ** 2) / 2
 
         # Initialize wealth. For now, this is fixed at 1 and does not
@@ -87,6 +92,7 @@ class Worker(Agent):
         # Initialize employment information.
         self.employer_id = None
         self.employer_size = None
+        self.job_history = []
 
         # Initialize search, offer, and switch information. Search is a
         # boolean that indicates if the worker was selected to actively
@@ -269,7 +275,9 @@ class Worker(Agent):
 
     def get_potential_firms(self) -> list[Agent]:
         """
-        Generate a list of potential firm agents.
+        Generate a list of potential firm agents. Since potential firms
+        always includes a start-up firm, the list will always include
+        at least one firm.
 
         Returns
         -------
@@ -327,7 +335,7 @@ class Worker(Agent):
             workers = self.random.sample(population=workers, k=k)
 
         # Get a list of the firms at which the workers are employed.
-        firms = self.get_worker_firms(workers=workers)
+        firms = self.get_worker_firms(workers=workers, exclude_current=True)
 
         return firms
 
@@ -352,7 +360,7 @@ class Worker(Agent):
         )
 
         # Get a list of the firms at which the workers are employed.
-        firms = self.get_worker_firms(workers=workers)
+        firms = self.get_worker_firms(workers=workers, exclude_current=True)
 
         return firms
 
@@ -376,7 +384,9 @@ class Worker(Agent):
 
         return empty_firm
 
-    def get_worker_firms(self, workers: Iterable[Agent]) -> list[Agent]:
+    def get_worker_firms(
+            self, workers: Iterable[Agent], exclude_current: bool=False
+        ) -> list[Agent]:
         """
         Get a list of the firms at which the workers are employed.
 
@@ -384,6 +394,9 @@ class Worker(Agent):
         ----------
         workers : list
             A set of worker agents.
+        exclude_current
+            Whether to exclude the current employer from the list of
+            firms.
 
         Returns
         -------
@@ -398,14 +411,25 @@ class Worker(Agent):
 
         for worker in workers:
 
-            # Select firms, returns an AgentSet. The set should contain
-            # only one firm.
-            firm_set = self.model.firms.select(
-                lambda x: x.unique_id == worker.employer_id
-            )
+            # If the current firm is to be excluded, then select the
+            # worker's firm, returns an AgentSet. The set should contain
+            # only at most one firm as a worker can only be employed by
+            # one firm at a time. Otherwise, select the worker's firm
+            # without any restrictions.
+            if exclude_current == True:
+                firm_set = self.model.firms.select(
+                    lambda x: (
+                        x.unique_id == worker.employer_id
+                        and x.unique_id != self.employer_id
+                    )
+                )
+            else:
+                firm_set = self.model.firms.select(
+                    lambda x: x.unique_id == worker.employer_id
+                )
 
             # Add the firm to the list of firms if it is not already in
-            # the list. This works with empty lists.
+            # the list and is not the current employer.
             for firm in firm_set:
                 if firm not in firms:
                     firms.append(firm)
@@ -435,6 +459,9 @@ class Worker(Agent):
 
         # Update the worker's employer ID.
         self.employer_id = firm.unique_id
+
+        # Update the worker's work history.
+        self.job_history.append([self.model.steps, self.employer_id])
 
         # Update employer size.
         self.update_employer_size()
@@ -470,6 +497,12 @@ class Worker(Agent):
         wage: float
             The new wage for the worker.
         """
-        
-        # Update the worker's wealth.
-        self.wealth += wage
+
+        # If the wealth is to be updated, then update the worker's
+        # wealth.
+        if self.model.update_wealth == True:
+            # Update the worker's wealth.
+            self.wealth += wage
+        else:
+            # Do not update the worker's wealth.
+            pass
