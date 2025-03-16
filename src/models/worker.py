@@ -34,9 +34,28 @@ class Worker(Agent):
         The size of the current employer firm.
     network: AgentSet
         The network of other workers the agent is connected to.
+    mutual_acceptance (bool):
+        Whether the worker must accept an offer from a firm to switch
+        employers.
+    global_search_rate (float):
+        The rate at which the worker searches for a new employer outside
+        their network.
+    constant_sigma (float | None):
+        The constant sigma value for the worker. If None, the sigma is
+        set to a random value that ensures the worker's growth rate is
+        positive.
+    track_wealth (bool):
+        Whether the worker's wealth is updated each step. Alternatively,
+        the wealth is fixed at 1, limiting the amount of wealth that can
+        be contributed to the firm at each step.
+    job_history : list
+        A list tracking the worker's employment history.
     """
 
-    def __init__(self, model) -> None:
+    def __init__(
+            self, model, mutual_acceptance: bool, global_search_rate: float,
+            constant_sigma: float | None, track_wealth: bool
+        ) -> None:
         """
         Initializes the worker with random attributes for investment 
         return and volatility, sets initial wealth, and clears
@@ -45,38 +64,58 @@ class Worker(Agent):
         Attributes
         ----------
         mu : float
-            The expected return rate of the worker's investment,
-            randomly initialized between 0 and 0.01.
+            The expected return rate of the worker's investment.
         sigma : float
-            The volatility of the worker's investment return, randomly
-            initialized based on mu.
+            The volatility of the worker's investment return.
         g : float
-            The growth rate of the worker's investment, calculated as mu
-            minus half the variance.
+            The growth rate of the worker's investment.
         wealth : float
-            The initial wealth of the worker, set to 1.
-        employer_id : int or None
-            The ID of the current employer firm, initially set to None.
-        employer_size : int or None
-            The size of the current employer firm, initially set to
-            None.
-        network : AgentSet or None
-            The network of other workers the agent is connected to,
-            initially set to None.
+            The current wealth of the worker.
+        employer_id : int | None
+            The ID of the current employer firm.
+        employer_size : int | None
+            The size of the current employer firm.
+        network : AgentSet
+            The network of other workers the agent is connected to.
+        mutual_acceptance : bool
+            Whether the worker must accept an offer from a firm to switch
+            employers.
+        global_search_rate : float
+            The rate at which the worker searches for a new employer outside
+            their network.
+        constant_sigma : float | None
+            The constant sigma value for the worker. If None, the sigma is
+            set to a random value that ensures the worker's growth rate is
+            positive.
+        track_wealth : bool
+            Whether the worker's wealth is updated each step. Alternatively,
+            the wealth is fixed at 1, limiting the amount of wealth that can
+            be contributed to the firm at each step.
+        job_history : list
+            A list tracking the worker's employment history.
         """
 
         # Initialize the agent with the model object.
         super().__init__(model)
 
+        # Set the parameters.
+        self.mutual_acceptance = mutual_acceptance
+        self.global_search_rate = global_search_rate
+        self.constant_sigma = constant_sigma
+        self.track_wealth = track_wealth
+
         # Initialize the worker with random investment return and
         # volatility, and calculate the growth rate.
         self.mu = self.random.uniform(0, 0.01)
 
-        if self.model.constant_sigma:
-            self.sigma = self.model.constant_sigma
+        # If the sigma is constant, then set the sigma to the constant
+        # value. Otherwise, set the sigma to a random value.
+        if self.constant_sigma:
+            self.sigma = self.constant_sigma
         else:
             self.sigma = self.random.uniform(0, math.sqrt(2 * self.mu))
 
+        # Calculate the growth rate.
         self.g = self.mu - (self.sigma ** 2) / 2
 
         # Initialize wealth. For now, this is fixed at 1 and does not
@@ -184,7 +223,7 @@ class Worker(Agent):
             # will only do is if adding the worker will increase the
             # firm's growth rate. Otherwise, the worker can join the
             # firm and the offer is always True.
-            if self.model.mutual_acceptance == True:
+            if self.mutual_acceptance == True:
                 offer = firm.offer(worker=self)
             else:
                 offer = True
@@ -288,7 +327,7 @@ class Worker(Agent):
         # Select firms. 1% of the time select firms from the general
         # worker population. Otherwise, select firms from the worker's
         # network. This returns a list and can return an empty list.
-        if self.random.random() < self.model.global_search_rate:
+        if self.random.random() < self.global_search_rate:
             worker_firms = self.select_firms_with_workers(k=self.num_neighbors)
         else:
             worker_firms = self.select_firms_from_network()
@@ -500,7 +539,7 @@ class Worker(Agent):
 
         # If the wealth is to be updated, then update the worker's
         # wealth.
-        if self.model.update_wealth == True:
+        if self.track_wealth == True:
             # Update the worker's wealth.
             self.wealth += wage
         else:

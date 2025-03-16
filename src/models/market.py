@@ -71,14 +71,14 @@ class Market(Model):
         self.num_steps = num_steps
         self.num_agents = num_agents
         self.activation = activation
-        self.mutual_acceptance = mutual_acceptance
-        self.global_search_rate = global_search_rate
-        self.constant_sigma = constant_sigma
-        self.update_wealth = update_wealth
 
         # Create worker and firm agents. This adds the agents to the
         # model's agent attribute.
-        Worker.create_agents(model=self, n=num_agents)
+        Worker.create_agents(
+            model=self, n=num_agents, mutual_acceptance=mutual_acceptance,
+            global_search_rate=global_search_rate, update_wealth=update_wealth,
+            constant_sigma=constant_sigma
+        )
         Firm.create_agents(model=self, n=2*num_agents+1)
 
         # Initialize agent networks.
