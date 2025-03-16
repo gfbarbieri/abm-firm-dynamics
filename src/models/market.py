@@ -32,7 +32,7 @@ class Market(Model):
     def __init__(
             self, num_steps: int, num_agents: int, activation: float,
             mutual_acceptance: bool=True, global_search_rate: float=0.01,
-            constant_sigma: float | None=None, update_wealth: bool=True,
+            constant_sigma: float | None=None, track_wealth: bool=True,
             seed: int=None
         ) -> None:
         """
@@ -56,7 +56,7 @@ class Market(Model):
         constant_sigma
             A sigma value to pass to all workers to ensure they are
             identical. If None, the sigma is set to a random value.
-        update_wealth
+        track_wealth
             Whether the wealth of the workers is updated. If True, the
             wealth is updated based on the growth rate and the sigma at
             the end of each step.
@@ -76,7 +76,7 @@ class Market(Model):
         # model's agent attribute.
         Worker.create_agents(
             model=self, n=num_agents, mutual_acceptance=mutual_acceptance,
-            global_search_rate=global_search_rate, update_wealth=update_wealth,
+            global_search_rate=global_search_rate, track_wealth=track_wealth,
             constant_sigma=constant_sigma
         )
         Firm.create_agents(model=self, n=2*num_agents+1)
