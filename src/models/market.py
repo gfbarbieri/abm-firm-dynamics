@@ -3,6 +3,7 @@
 ########################################################################
 
 import math
+import numpy as np
 
 from mesa import Model
 from mesa.agent import AgentSet
@@ -32,7 +33,8 @@ class Market(Model):
     def __init__(
             self, num_steps: int, num_agents: int, activation: float,
             mutual_acceptance: bool=True, global_search_rate: float=0.01,
-            constant_sigma: float | None=None, track_wealth: bool=True,
+            constant_mu: float | None=None,  constant_sigma: float | None=None,
+            track_wealth: bool=True, build_correlation_matrix: bool=True,
             seed: int=None
         ) -> None:
         """
@@ -53,6 +55,10 @@ class Market(Model):
             growth rate.
         global_search_rate
             The global search rate of the workers.
+        constant_mu : float | None
+            The constant mu vlaue for the worker. IF None, then the mu
+            is set to a random value that when combined with a random
+            sigma ensures the worker's growth rate is positive.
         constant_sigma
             A sigma value to pass to all workers to ensure they are
             identical. If None, the sigma is set to a random value.
@@ -77,7 +83,7 @@ class Market(Model):
         Worker.create_agents(
             model=self, n=num_agents, mutual_acceptance=mutual_acceptance,
             global_search_rate=global_search_rate, track_wealth=track_wealth,
-            constant_sigma=constant_sigma
+            constant_mu=constant_mu, constant_sigma=constant_sigma
         )
         Firm.create_agents(model=self, n=2*num_agents+1)
 
@@ -101,6 +107,16 @@ class Market(Model):
 
             # Update firm's status to record the firm's activity.
             firm.update_status()
+
+        # After workers have been initialized into firms, we can begin
+        # to build the correlation matrix between all workers. The
+        # correlation matrix is a square matrix where the element at
+        # row i and column j is the correlation between the ith and jth
+        # workers. These correlations are used to in the calculation of
+        # growth rates. The base correlation matrix is the zero, or
+        # uncorrelated, matrix.
+        if build_correlation_matrix:
+            self.build_correlation_matrix()
 
         # Set up data collection. While a data collection class can
         # accept reporters for different levels, we are instead going to
@@ -231,6 +247,17 @@ class Market(Model):
             # as the final state of the model.
             if i == self.num_steps - 1:
                 self.agent_collector.collect(self)
+
+    def build_correlation_matrix(self) -> None:
+        """
+        Builds the correlation matrix between all workers.
+        """
+
+        # Build the correlation matrix where the correlation is a random
+        # number between -1 and 1.
+        self.correlation_matrix = np.random.uniform(
+            low=-1, high=1, size=(self.num_agents, self.num_agents)
+        )
 
     @property
     def workers(self) -> AgentSet:

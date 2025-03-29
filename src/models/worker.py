@@ -53,8 +53,9 @@ class Worker(Agent):
     """
 
     def __init__(
-            self, model, mutual_acceptance: bool, global_search_rate: float,
-            constant_sigma: float | None, track_wealth: bool
+            self, model, mutual_acceptance: bool=True,
+            global_search_rate: float=0.01, constant_mu: float | None=None,
+            constant_sigma: float | None=None, track_wealth: bool=False
         ) -> None:
         """
         Initializes the worker with random attributes for investment 
@@ -68,7 +69,9 @@ class Worker(Agent):
         sigma : float
             The volatility of the worker's investment return.
         g : float
-            The growth rate of the worker's investment.
+            The growth rate of the worker's investment. If random mu and
+            sigma are selected, then the growth rate is designed to be
+            positive.
         wealth : float
             The current wealth of the worker.
         employer_id : int | None
@@ -83,10 +86,14 @@ class Worker(Agent):
         global_search_rate : float
             The rate at which the worker searches for a new employer outside
             their network.
+        constant_mu : float | None
+            The constant mu vlaue for the worker. IF None, then the mu
+            is set to a random value that when combined with a random
+            sigma ensures the worker's growth rate is positive.
         constant_sigma : float | None
-            The constant sigma value for the worker. If None, the sigma is
-            set to a random value that ensures the worker's growth rate is
-            positive.
+            The constant sigma value for the worker. If None, the sigma
+            is set to a random value that when combined with a random
+            sigma ensures the worker's growth rate is positive.
         track_wealth : bool
             Whether the worker's wealth is updated each step. Alternatively,
             the wealth is fixed at 1, limiting the amount of wealth that can
@@ -101,12 +108,16 @@ class Worker(Agent):
         # Set the parameters.
         self.mutual_acceptance = mutual_acceptance
         self.global_search_rate = global_search_rate
+        self.constant_mu = constant_mu
         self.constant_sigma = constant_sigma
         self.track_wealth = track_wealth
 
-        # Initialize the worker with random investment return and
-        # volatility, and calculate the growth rate.
-        self.mu = self.random.uniform(0, 0.01)
+        # If the mu is constant, then set the mu to the constant value.
+        # Otherwise, set it to a random value, randomly select it.
+        if self.constant_mu:
+            self.mu = self.constant_mu
+        else:
+            self.mu = self.random.uniform(0, 0.01)
 
         # If the sigma is constant, then set the sigma to the constant
         # value. Otherwise, set the sigma to a random value.
@@ -115,7 +126,9 @@ class Worker(Agent):
         else:
             self.sigma = self.random.uniform(0, math.sqrt(2 * self.mu))
 
-        # Calculate the growth rate.
+        # Calculate the growth rate. If random selection is used for
+        # mu and sigma, then the growth rate is designed to be always
+        # positive.
         self.g = self.mu - (self.sigma ** 2) / 2
 
         # Initialize wealth. For now, this is fixed at 1 and does not
