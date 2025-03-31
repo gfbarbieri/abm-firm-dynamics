@@ -31,11 +31,11 @@ class Market(Model):
     """
 
     def __init__(
-            self, num_steps: int, num_agents: int, activation: float,
-            mutual_acceptance: bool=True, global_search_rate: float=0.01,
-            constant_mu: float | None=None,  constant_sigma: float | None=None,
-            track_wealth: bool=True, build_correlation_matrix: bool=True,
-            seed: int=None
+            self, num_agents: int, activation: float,
+            num_steps: int | None=None, mutual_acceptance: bool=True,
+            global_search_rate: float=0.01, constant_mu: float | None=None,
+            constant_sigma: float | None=None, track_wealth: bool=True,
+            correlation_matrix: dict[str, bool] | None=None, seed: int=None
         ) -> None:
         """
         Initializes the market model with workers and firms. Workers are
@@ -43,12 +43,13 @@ class Market(Model):
 
         Parameters
         ----------
-        num_steps
-            The number of steps to run the model for.
         num_agents
             The number of agents in the model.
         activation
             The activation rate of the workers.
+        num_steps
+            The number of steps to run the model for. If None, the
+            model will run until it converges.
         mutual_acceptance
             Whether firms must accept workers before they can join. If
             True, firms will only accept workers that increase their
@@ -66,6 +67,9 @@ class Market(Model):
             Whether the wealth of the workers is updated. If True, the
             wealth is updated based on the growth rate and the sigma at
             the end of each step.
+        correlation_matrix
+            A dictionary containing the parameters for the correlation
+            matrix. If None, the correlation matrix is not built.
         seed
             The random seed for the model.
         """
@@ -113,10 +117,14 @@ class Market(Model):
         # correlation matrix is a square matrix where the element at
         # row i and column j is the correlation between the ith and jth
         # workers. These correlations are used to in the calculation of
-        # growth rates. The base correlation matrix is the zero, or
-        # uncorrelated, matrix.
-        if build_correlation_matrix:
-            self.build_correlation_matrix()
+        # growth rates.
+        if correlation_matrix is None:
+            correlation_matrix = {
+                'randomize': False,
+                'randomize_diagonal': False
+            }
+
+        self.build_correlation_matrix(**correlation_matrix)
 
         # Set up data collection. While a data collection class can
         # accept reporters for different levels, we are instead going to
@@ -224,12 +232,45 @@ class Market(Model):
 
     def run_model(self) -> None:
         """
-        Runs the model for a given number of steps.
+        Runs the model for a given number of steps or until it
+        converges.
+        """
 
-        Parameters
-        ----------
-        num_steps : int
-            The number of steps to run the model for.
+        # If the number of steps is not None, run the model for the
+        # given number of steps.
+        if self.num_steps is not None:
+
+            self.step_model()
+
+        # If the number of steps is None, run the model until it
+        # converges.
+        else:
+
+            self.converge_model()
+
+    def converge_model(self) -> None:
+        """
+        Runs the model until it converges.
+        """
+        
+        # Run the model until it converges.
+        while self.running:
+
+            # Perform a step of the model.
+            self.step()
+
+            # Collect the data.
+            self.model_collector.collect(self)
+
+            # Check if the model has converged.
+            self.running = self.check_mutual_trades()
+
+        # If the model has converged, collect the agent-level data.
+        self.agent_collector.collect(self)
+
+    def step_model(self) -> None:
+        """
+        Runs the model for a given number of steps.
         """
 
         # Run the model for the given number of steps.
@@ -248,16 +289,152 @@ class Market(Model):
             if i == self.num_steps - 1:
                 self.agent_collector.collect(self)
 
-    def build_correlation_matrix(self) -> None:
+    def build_correlation_matrix(
+            self, randomize: bool=True, randomize_diagonal: bool=False
+        ) -> None:
         """
         Builds the correlation matrix between all workers.
+
+        The correlation matrix is a square matrix where the element at
+        row i and column j is the correlation between the ith and jth
+        workers. The base correlation matrix is the uncorrelated,
+        matrix with zeroes everywhere except for the diagonal where
+        the correlation is 1 (every agent is fully correlated with
+        themselves). Otherwise, the zeroes are replaced with a random
+        number between -1 and 1, but the diagonal is always 1. Another
+        option is to also replace the diagonal with random values.
+
+        Parameters
+        ----------
+        randomize : bool
+            Whether to randomize the correlation between workers.
+        randomize_diagonal : bool
+            Whether to randomize the correlation of workers with
+            themselves.
         """
 
-        # Build the correlation matrix where the correlation is a random
-        # number between -1 and 1.
-        self.correlation_matrix = np.random.uniform(
-            low=-1, high=1, size=(self.num_agents, self.num_agents)
-        )
+        # There are four possible configurations, but only two are
+        # relevant to the model.
+        # 1. The correlation matrix is not randomized and the diagonal
+        #    is not randomized.
+        # 2. The correlation matrix is not randomized and the diagonal
+        #    is randomized.
+        # 3. The correlation matrix is randomized and the diagonal is
+        #    not randomized.
+        # 4. The correlation matrix is randomized and the diagonal is
+        #    randomized.
+
+        # Configuration 1: The correlation matrix is not randomized and
+        # the diagonal is not randomized. This returns the identity
+        # matrix.
+        if not randomize and not randomize_diagonal:
+
+            # Build the base correlation matrix as the identity matrix.
+            self.correlation_matrix = np.eye(self.num_agents)
+
+        # Configuration 2: The correlation matrix is randomized and
+        # the diagonal is not randomized. This returns a matrix where
+        # the diagonal is 1 and the rest are random numbers between -1
+        # and 1.
+        elif randomize and not randomize_diagonal:
+
+            # Build the correlation matrix where diagnoals are 1 and the
+            # rest are random numbers between -1 and 1.
+            self.correlation_matrix = np.random.uniform(
+                low=-1, high=1, size=(self.num_agents, self.num_agents)
+            )
+
+            # Fill the diagonal with 1s.
+            np.fill_diagonal(self.correlation_matrix, 1)
+
+        # Configuration 3: The correlation matrix is not randomized and
+        # the diagonal is randomized. This returns a matrix where the
+        # diagonal is random numbers between -1 and 1 and the rest are
+        # 0s.
+        elif not randomize and randomize_diagonal:
+
+            # Build the correlation matrix where the diagonal is
+            # random numbers between -1 and 1 and the rest are 0s.
+            self.correlation_matrix = np.random.uniform(
+                low=0, high=0, size=(self.num_agents, self.num_agents)
+            )
+
+            # Fill the diagonal with random numbers between -1 and 1.
+            np.fill_diagonal(
+                self.correlation_matrix,
+                np.random.uniform(low=-1, high=1, size=self.num_agents)
+            )
+
+        # Configuration 4: The correlation matrix is randomized and the
+        # diagonal is randomized. This returns a matrix where the
+        # diagonal is random numbers between -1 and 1 and the rest are
+        # random numbers between -1 and 1.
+        elif randomize and randomize_diagonal:
+
+            # Build the correlation matrix where all elements are a
+            # random number between -1 and 1.
+            self.correlation_matrix = np.random.uniform(
+                low=-1, high=1, size=(self.num_agents, self.num_agents)
+            )
+
+    def check_mutual_trades(self) -> bool:
+        """
+        Checks if any mutually beneficial trades exist between workers
+        and firms.
+
+        A trade is mutually beneficial if:
+        1. A firm would accept a worker (worker increases firm's growth
+        rate)
+        2. Worker would accept firm (firm offers better growth rate than
+        current employer)
+        
+        Returns
+        -------
+        bool
+            True if no mutually beneficial trades exist (convergence
+            achieved). False if at least one mutually beneficial trade
+            exists.
+        """
+
+        # For each worker and firm, check if there is a mutually
+        # beneficial trade.
+        for worker in self.workers:
+
+            # Get the growth rate of the worker's current firm.
+            curr_g = self.firms.select(
+                lambda x: x.unique_id == worker.employer_id
+            )[0].calc_time_avg_growth_rate()
+
+            # Get all firms except the worker's current employer.
+            # Include only firms that are not empty.
+            firms = self.firms.select(
+                lambda x: x.unique_id != worker.employer_id and x.size > 0
+            )
+            firms.add(self.firms.select(lambda x: x.size == 0, at_most=1)[0])
+
+            # For each firm, check if the firm would accept the worker.
+            # If so, check if the worker would join the firm. If both
+            # are true, then a mutually beneficial trade exists. Else,
+            # no trade exists.
+            for firm in firms:
+
+                # Check if firm would accept worker.
+                offer = firm.offer(worker)
+
+                # If the firm would accept the worker, check if the
+                # worker would join the firm.
+                if offer == True:
+
+                    # Calculate potential growth rate with worker.
+                    new_g = firm.calc_time_avg_growth_rate(
+                        add_workers=[worker]
+                    )
+                    
+                    # Check if worker would join firm.
+                    if new_g > curr_g:
+                        return True
+
+        return False
 
     @property
     def workers(self) -> AgentSet:

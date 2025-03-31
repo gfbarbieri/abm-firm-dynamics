@@ -55,7 +55,8 @@ class Worker(Agent):
     def __init__(
             self, model, mutual_acceptance: bool=True,
             global_search_rate: float=0.01, constant_mu: float | None=None,
-            constant_sigma: float | None=None, track_wealth: bool=False
+            constant_sigma: float | None=None, num_neighbors: int | None=None,
+            track_wealth: bool=False
         ) -> None:
         """
         Initializes the worker with random attributes for investment 
@@ -81,11 +82,11 @@ class Worker(Agent):
         network : AgentSet
             The network of other workers the agent is connected to.
         mutual_acceptance : bool
-            Whether the worker must accept an offer from a firm to switch
-            employers.
+            Whether the worker must accept an offer from a firm to
+            switch employers.
         global_search_rate : float
-            The rate at which the worker searches for a new employer outside
-            their network.
+            The rate at which the worker searches for a new employer
+            outside their network.
         constant_mu : float | None
             The constant mu vlaue for the worker. IF None, then the mu
             is set to a random value that when combined with a random
@@ -94,10 +95,14 @@ class Worker(Agent):
             The constant sigma value for the worker. If None, the sigma
             is set to a random value that when combined with a random
             sigma ensures the worker's growth rate is positive.
+        num_neighbors : int | None
+            The number of neighbors the worker has. If None, then the
+            number of neighbors is selected at random between 2 and 6.
         track_wealth : bool
-            Whether the worker's wealth is updated each step. Alternatively,
-            the wealth is fixed at 1, limiting the amount of wealth that can
-            be contributed to the firm at each step.
+            Whether the worker's wealth is updated each step.
+            Alternatively, the wealth is fixed at 1, limiting the
+            amount of wealth that can be contributed to the firm at
+            each step.
         job_history : list
             A list tracking the worker's employment history.
         """
@@ -162,8 +167,12 @@ class Worker(Agent):
         self.offer = None
         self.switch = None
 
-        # Initialize the social network.
-        self.num_neighbors = self.random.randint(2, 6)
+        # Initialize the number of neighbors.
+        if num_neighbors is None:
+            self.num_neighbors = self.random.randint(2, 6)
+        else:
+            self.num_neighbors = num_neighbors
+
         self.network = None
 
     def init_network(self) -> None:

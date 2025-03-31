@@ -1,7 +1,10 @@
 base_params = {
     'seed': 92,
-    'steps': 10,
-    'n_workers': 100,
-    'num_neighbors': 4,
-    'active': 0.10
- }
+    # 'num_steps': 50000,
+    'num_agents': 500,
+    'activation': 0.04,
+    'mutual_acceptance': True,
+    'global_search_rate': 1,
+    # 'constant_mu': 0.05,
+    # 'constant_sigma': 0.1
+}
