@@ -213,8 +213,8 @@ class Firm(Agent):
             self.output_per_worker = self.output / self.size
 
         # Update each worker's wealth by the output per worker.
-        # for worker in self.workers:
-        #     worker.update_wealth(wage=opw)
+        for worker in self.workers:
+            worker.update_wealth(wealth=self.output_per_worker)
 
     def update_status(self) -> None:
         """

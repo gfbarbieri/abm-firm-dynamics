@@ -549,21 +549,21 @@ class Worker(Agent):
             # Update the employer size.
             self.employer_size = employer[0].size   
 
-    def update_wealth(self, wage: float) -> None:
+    def update_wealth(self, wealth: float) -> None:
         """
         Update the worker's wealth.
 
         Parameters
         ----------
-        wage: float
-            The new wage for the worker.
+        wealth: float
+            The new wealth for the worker.
         """
 
         # If the wealth is to be updated, then update the worker's
         # wealth.
         if self.track_wealth == True:
             # Update the worker's wealth.
-            self.wealth += wage
+            self.wealth = wealth
         else:
             # Do not update the worker's wealth.
             pass
