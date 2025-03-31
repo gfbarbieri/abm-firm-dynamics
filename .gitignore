@@ -162,4 +162,6 @@ cython_debug/
 
 # Data.
 data/
+research/
+_archive/
 .DS_Store
