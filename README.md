@@ -1,53 +1,116 @@
-# Firm Dynamics ABM
+# Agent-Based Model of Firm Dynamics
+
+This repository contains an agent-based model that explores the emergence of increasing returns to scale (IRS) at the firm level while maintaining constant returns to scale (CRS) in the aggregate. The model demonstrates how this pattern naturally arises from risk-sharing under multiplicative dynamics.
 
 ## Overview
 
-This project presents an agent-based model (ABM) that simulates firm dynamics within a market environment. It builds upon the foundational work of Robert Axtell's research on firm dynamics, exploring the intricate interactions between workers and firms, and focusing on the processes of employment dynamics, production, and distribution within a simulated economy.
+The model simulates a labor market where:
+- Workers have multiplicative wealth dynamics characterized by expected return rates ($\mu$) and volatility ($\sigma$)
+- Firms form as cooperative groups that share output and pool risk
+- Workers search for employment opportunities that maximize their growth potential
+- Firms evaluate potential hires based on their impact on firm-level growth rates
 
-The motivation behind this project stems from Robert Axtell's seminal work on firm dynamics, which provides a comprehensive exploration of how firms grow and interact within economic systems. This project seeks to extend Axtell's model by incorporating insights from Ole Peters and the Ergodicity Economics research program. Specifically, it aims to examine the implications of shifting the primary worker maximand from utility to the growth rate of wealth.
+## Key Features
 
-## Features
+- **Risk-Sharing Mechanism**: Firms reduce volatility through diversification, creating IRS at the firm level
+- **Endogenous Firm Formation**: Firms emerge and stabilize based on optimal risk-sharing configurations
+- **Convergence Properties**: Model naturally converges to a state where no mutually beneficial trades exist
+- **Flexible Configuration**: Supports various parameter settings for activation rates, search behavior, and correlation structures
 
-- **Simulation of Firm Dynamics**: Models the lifecycle of firms and their interactions with workers in a competitive market, with a unique focus on the growth rate of wealth as the primary worker maximand.
-- **Data Analysis**: Utilizes analytical techniques to derive insights into market dynamics, firm growth patterns, and the impact of wealth growth maximization on employment and economic stability.
-- **Visualization**: Employs various visualization tools to represent the outcomes of simulations, facilitating a clearer understanding of complex economic interactions and dynamics.
+## Model Structure
 
-## Installation
+The model consists of three main components:
 
-Clone this repository to your local machine:
+1. **Workers** (`worker.py`):
+   - Characterized by $\mu$ (expected return) and $\sigma$ (volatility)
+   - Search for employment opportunities
+   - Produce output based on multiplicative dynamics
+
+2. **Firms** (`firm.py`):
+   - Employ workers and facilitate production
+   - Evaluate potential hires based on growth rate impact
+   - Distribute output among workers
+
+3. **Market** (`market.py`):
+   - Manages interactions between workers and firms
+   - Handles job search and matching process
+   - Tracks convergence through mutual trade checking
+
+## Installing Dependencies
+
+To install with Poetry, run:
 
 ```bash
-git clone https://github.com/yourusername/firm_dynamics.git
-cd firm_dynamics
+poetry install
+```
+
+To install with pip, run:
+
+```bash
 pip install -r requirements.txt
+```
+
+To create a requirements.txt file using Poetry:
+
+```bash
+poetry export --without-hashes --format=requirements.txt > requirements.txt
+```
+
+To create a virtual environment before using pip:
+
+```bash
+python -m venv venv
+source venv/bin/activate
 ```
 
 ## Usage
 
-To run the simulation, navigate to the src directory and execute the main script:
+```python
+from src.models.market import Market
 
-```bash
-python main.py
+# Initialize model with parameters. Without num_steps, the model will
+# run until convergence.
+model = Market(
+    num_agents=100,
+    activation=0.1,
+    mutual_acceptance=True,
+    global_search_rate=1.0
+)
+
+# Run until convergence
+model.run_model()
 ```
 
-For analyzing the simulation results, scripts located in analysis directory can be used:
+## Key Parameters
 
-```bash
-python analysis/analyze_results.py
-```
+- `num_agents`: Number of workers in the model
+- `activation`: Rate at which workers search for new jobs
+- `mutual_acceptance`: Whether both worker and firm must agree to a match
+- `global_search_rate`: Rate at which workers search outside their network
+- `constant_mu`/`constant_sigma`: Optional fixed values for worker characteristics
+- `track_wealth`: Whether to update worker wealth over time
+- `correlation_matrix`: Configuration for worker correlation structure
 
-## Documentation
-Generate the documentation using Sphinx:
+## Data Collection
 
-```bash
-cd docs
-make html
-```
+The model collects data on:
+- Firm size distribution
+- Worker mobility
+- Growth rates
+- Job creation/destruction
+- Output production
 
-The generated HTML documentation can be found in docs/build/html/index.html.
+## Requirements
 
-## Contributing
-Contributions to the Firm Dynamics ABM project are welcome. Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to make contributions.
+- Python 3.x
+- Mesa (Agent-Based Modeling framework)
+- NumPy
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+[Your chosen license]
+
+## Citation
+
+If you use this model in your research, please cite:
+[Your citation information]
