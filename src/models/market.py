@@ -35,7 +35,8 @@ class Market(Model):
             num_steps: int | None=None, mutual_acceptance: bool=True,
             global_search_rate: float=0.01, constant_mu: float | None=None,
             constant_sigma: float | None=None, track_wealth: bool=True,
-            correlation_matrix: dict[str, bool] | None=None, seed: int=None
+            correlation_matrix: dict[str, bool] | None=None, seed: int=None,
+            positive_g: bool=True, num_neighbors: int | None=None
         ) -> None:
         """
         Initializes the market model with workers and firms. Workers are
@@ -87,7 +88,8 @@ class Market(Model):
         Worker.create_agents(
             model=self, n=num_agents, mutual_acceptance=mutual_acceptance,
             global_search_rate=global_search_rate, track_wealth=track_wealth,
-            constant_mu=constant_mu, constant_sigma=constant_sigma
+            constant_mu=constant_mu, constant_sigma=constant_sigma,
+            positive_g=positive_g, num_neighbors=num_neighbors
         )
         Firm.create_agents(model=self, n=2*num_agents+1)
 
@@ -401,12 +403,12 @@ class Market(Model):
         for worker in self.workers:
 
             # Get the growth rate of the worker's current firm.
-            curr_g = self.firms.select(
-                lambda x: x.unique_id == worker.employer_id
+            curr_g = worker.get_worker_firms(
+                workers=[worker]
             )[0].calc_time_avg_growth_rate()
 
-            # Get all firms except the worker's current employer.
-            # Include only firms that are not empty.
+            # Get all firms except the worker's current employer, and
+            # add a singleton firm.
             firms = self.firms.select(
                 lambda x: x.unique_id != worker.employer_id and x.size > 0
             )

@@ -56,7 +56,7 @@ class Worker(Agent):
             self, model, mutual_acceptance: bool=True,
             global_search_rate: float=0.01, constant_mu: float | None=None,
             constant_sigma: float | None=None, num_neighbors: int | None=None,
-            track_wealth: bool=False
+            track_wealth: bool=False, positive_g: bool=True
         ) -> None:
         """
         Initializes the worker with random attributes for investment 
@@ -117,19 +117,51 @@ class Worker(Agent):
         self.constant_sigma = constant_sigma
         self.track_wealth = track_wealth
 
-        # If the mu is constant, then set the mu to the constant value.
-        # Otherwise, set it to a random value, randomly select it.
-        if self.constant_mu:
-            self.mu = self.constant_mu
-        else:
-            self.mu = self.random.uniform(0, 0.01)
+        # Set mu and sigma such that the growth rate is always positive.
+        # The only exception is if the user specifically passes a value
+        # of mu and sigma that generates a negative growth rate for the
+        # agents. In that case, all agents will get the same negative
+        # growth rate.
+        # 
+        # Business logic for assigning positive growth rates:
+        # Case 1: If mu and sigma are both constant, then set mu to the
+        # constant and set sigma to the constant.
+        # 
+        # Case 2: If mu is not constant, and sigma is constant, then set
+        # mu to a value between no lower than sigma**2/2 and no higher
+        # than sigma**2/2 + 0.01 and set sigma to the constant.
+        #
+        # Case 3: If mu is constant, and sigma is not constant, then set
+        # mu to the constant, and set sigma no lower than 0 and no higher
+        # than sqrt(2 * mu).
+        #
+        # Case 4: If mu and sigma are both not constant, then set mu to a
+        # random value between 0 and 0.01, and set sigma to a random value
+        # no lower than 0 and no higher than sqrt(2 * mu).
 
-        # If the sigma is constant, then set the sigma to the constant
-        # value. Otherwise, set the sigma to a random value.
-        if self.constant_sigma:
+        if self.constant_mu and self.constant_sigma:
+            self.mu = self.constant_mu
             self.sigma = self.constant_sigma
-        else:
+        elif self.constant_mu is None and self.constant_sigma and positive_g:
+            self.mu = self.random.uniform(
+                self.constant_sigma**2/2, self.constant_sigma**2/2 + 0.01
+            )
+            self.sigma = self.constant_sigma
+        elif self.constant_mu is None and self.constant_sigma and not positive_g:
+            self.mu = self.random.uniform(0, 0.01)
+            self.sigma = self.constant_sigma
+        elif self.constant_mu and self.constant_sigma is None and positive_g:
+            self.mu = self.constant_mu
             self.sigma = self.random.uniform(0, math.sqrt(2 * self.mu))
+        elif self.constant_mu and self.constant_sigma is None and not positive_g:
+            self.mu = self.constant_mu
+            self.sigma = self.random.uniform(0, 0.1)
+        elif self.constant_mu is None and self.constant_sigma is None and positive_g:
+            self.mu = self.random.uniform(0, 0.01)
+            self.sigma = self.random.uniform(0, math.sqrt(2 * self.mu))
+        elif self.constant_mu is None and self.constant_sigma is None and not positive_g:
+            self.mu = self.random.uniform(0, 0.01)
+            self.sigma = self.random.uniform(0, 0.1)
 
         # Calculate the growth rate. If random selection is used for
         # mu and sigma, then the growth rate is designed to be always
@@ -289,7 +321,7 @@ class Worker(Agent):
                 self.offer = False
 
     def rank_firms(
-            self, firms: AgentSet, ascending: bool=False, return_g: bool=True
+            self, firms: AgentSet, descending: bool=True, return_g: bool=True
         ) -> list[tuple[Agent, float]] | list[Agent]:
         """
         Ranks firms for employment based on their calculated
@@ -300,8 +332,8 @@ class Worker(Agent):
         ----------
         firms
             A list of firms to rank.
-        ascending
-            Whether to sort the firms in ascending order. Passed to
+        descending
+            Whether to sort the firms in descending order. Passed to
             the `sorted` function's `reverse` argument.
         return_g
             Whether to return a the sorted list of firms with or without
@@ -325,7 +357,7 @@ class Worker(Agent):
         # Sort the list of tuples descending by growth rate. Lambda
         # focuses the sorting on the second element in the tuple, which
         # is the growth rate.
-        g_f = sorted(g_f, key=lambda x: x[1], reverse=ascending)
+        g_f = sorted(g_f, key=lambda x: x[1], reverse=descending)
 
         # Return the sorted list of firms with or without their growth
         # rates.
